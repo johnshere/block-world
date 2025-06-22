@@ -3,6 +3,7 @@
         <div class="operate">
             <button @click="run">运转</button>
             <button @click="random(30)">随机</button>
+            <button @click="randomKill(2000)">随机kill</button>
             <button @click="stop">停止</button>
             <button @click="reset">重置</button>
             <span class="count">count: {{ activeCount }}</span>
@@ -17,10 +18,10 @@
 <script lang="ts" setup>
 import World from "./world.vue";
 import Panel from "./panel.vue";
-import { grid, random, reset, run, store, stop } from "./data";
+import { random, reset, run, store, stop, randomKill } from "./data";
 import { computed } from "vue";
 
-const activeCount = computed(() => grid.value.flat().filter((cell) => cell).length)
+const activeCount = computed(() => store.grid.flat().filter((cell) => cell).length)
 </script>
 <style lang="scss">
 .main {

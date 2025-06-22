@@ -1,6 +1,6 @@
 <template>
     <div class="world">
-        <div v-for="(row, rowIndex) in grid" :key="rowIndex" class="row">
+        <div v-for="(row, rowIndex) in store.grid" :key="rowIndex" class="row">
             <Cell v-for="(cell, colIndex) in row" :key="colIndex" :active="cell"
                 @click="handleClick(rowIndex, colIndex)" />
         </div>
@@ -8,11 +8,15 @@
 </template>
 
 <script lang="ts" setup>
-import { grid, toggle } from './data';
+import { toggle, store, crossKill } from './data';
 import Cell from './cell.vue';
 
 const handleClick = (row: number, col: number) => {
-    toggle(row, col);
+    if (store.runningId) {
+        crossKill(row, col);
+    } else {
+        toggle(row, col);
+    }
 }
 </script>
 
