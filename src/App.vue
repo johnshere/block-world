@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import Main from './components/main.vue'
+import World1 from '@/components/world1/index.vue'
 </script>
 
 <template>
-  <Main />
+  <World1 />
 </template>
 
 <style>

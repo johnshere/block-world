@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { MapHeight, MapWidth } from "../consts/config";
+import { MapHeight, MapWidth } from "@/consts/config";
 import { reactive } from "vue";
 
 export const grid = ref(

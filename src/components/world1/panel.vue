@@ -12,7 +12,7 @@
 import { ref } from 'vue';
 import Cell from './cell.vue';
 import { store, reset } from './data';
-import { MapHeight, MapWidth } from '../consts/config';
+import { MapHeight, MapWidth } from '@/consts/config';
 
 const examples = ref([
     // 竖线（Blinker）（闪烁）
