@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import World1 from '@/components/world1/index.vue'
+// import World1 from '@/components/world1/index.vue'
+import World2 from '@/components/world2/index.vue'
 </script>
 
 <template>
-  <World1 />
+  <!-- <World1 /> -->
+  <World2 />
 </template>
 
 <style>
