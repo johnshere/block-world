@@ -1,7 +1,7 @@
 <template>
     <div class="main">
         <div class="operate">
-            <button @click="start">运转</button>
+            <button @click="start">随机</button>
             <button @click="stop">停止</button>
             <button @click="reset">重置</button>
             <button @click="remove">消除</button>
@@ -46,12 +46,12 @@ const generate = () => {
     if (ran < densityFactor) return;
 
     let creature: Creature | undefined = undefined;
-    if (ran > 0.1) {
-        const localExamples = localStorage.getItem('creature-examples')
-        const examples = localExamples ? JSON.parse(localExamples) : []
-        const exam = examples[Math.floor(Math.random() * examples.length)];
-        creature = new Creature(exam);
-    }
+    // if (ran > 0.1) {
+    //     const localExamples = localStorage.getItem('creature-examples')
+    //     const examples = localExamples ? JSON.parse(localExamples) : []
+    //     const exam = examples[Math.floor(Math.random() * examples.length)];
+    //     creature = new Creature(exam);
+    // }
     if (!creature) {
         ran = Math.random();
         const selectedType = typeRanges.find(range => ran <= range.max);
@@ -88,7 +88,7 @@ const generate = () => {
 const start = () => {
     run(generate)
 }
-onMounted(start)
+onMounted(() => run())
 </script>
 <style lang="scss">
 .main {

@@ -1,8 +1,9 @@
 <template>
   <div class="panel-wrap">
     <div class="operate">
+      <button @click="add">添加</button>
       <button @click="rotate">旋转</button>
-      <button @click="addExample()">添加</button>
+      <button @click="addExample()">留存</button>
       <button @click="remove">删除</button>
       <button v-if="!type" @click="toSecond">to 2</button>
     </div>
@@ -34,6 +35,7 @@ import { ref, watch } from 'vue';
 import { MapHeight, MapWidth } from '@/consts/config';
 import { computed } from '@vue/reactivity';
 import { Creature } from './Creature';
+import { ocean, pixelToUnit, world } from './Ocean';
 
 const props = defineProps({
   type: {
@@ -81,7 +83,7 @@ if (localExamples) {
 }
 
 const active = ref<Creature>();
-const example = ref<Creature>();
+const example = ref<Creature>(new Creature(Array(6).fill(0).map(() => Array(6).fill(false))));
 const real = ref<Creature>();
 
 const show = computed(() => {
@@ -92,6 +94,11 @@ watch(() => examStore.value, () => {
   localStorage.setItem(storageKey.value, JSON.stringify(examStore.value));
 }, { deep: true })
 
+const add = () => {
+  const exa = new Creature(example.value.cells)
+  exa.position.x = Math.floor(Math.random() * (world.cols - exa.cells.length));
+  ocean.value.push(exa);
+}
 const toggle = (row: number, col: number) => {
   if (!example.value) return;
   const cur = example.value as any;
@@ -139,11 +146,10 @@ const push = (exami: number) => {
 };
 const addExample = (exam?: Creature) => {
   if (!exam && example.value) {
-    exam = example.value;
+    exam = JSON.parse(JSON.stringify(example.value)) as Creature;
   }
   // 检查是否已经存在
   for (let exa of examStore.value) {
-
     if (JSON.stringify(exa.cells) === JSON.stringify(exam)) {
       return;
     }
