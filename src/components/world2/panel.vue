@@ -1,126 +1,51 @@
 <template>
-  <div class="panel">
-    <div v-for="(example, ei) in examples" class="example" @click="push(ei)">
-      <div v-for="(row, rowIndex) in example" :key="rowIndex" class="row">
-        <div
-          v-for="(cell, colIndex) in row"
-          :key="colIndex"
-          :class="['cell', { active: !!cell }]"
-        />
+  <div class="panel-wrap">
+    <div class="operate">
+      <button @click="rotate">旋转</button>
+      <button @click="remove">删除</button>
+      <!-- <span>选中：{{ active }}</span> -->
+    </div>
+    <div class="panel">
+      <div v-for="(example, ei) in show" class="example" :class="{ active: active === example }"
+        @click="select(example)">
+        <div v-for="(row, rowIndex) in example" :key="rowIndex" class="row">
+          <div v-for="(cell, colIndex) in row" :key="colIndex" :class="['cell', { active: !!cell }]" />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
-import { store, reset } from './data';
+import { ref, watch } from 'vue';
 import { MapHeight, MapWidth } from '@/consts/config';
+import { computed } from '@vue/reactivity';
 
-const examples = ref([
-  // 竖线（Blinker）（闪烁）
-  [
-    [1, 0, 0],
-    [1, 0, 0],
-    [1, 0, 0],
-  ],
-  // 蟾蜍（Toad）
-  [
-    [0, 1, 1, 1],
-    [1, 1, 1, 0],
-  ],
-  // 信标（Beacon）
-  [
-    [1, 1, 0, 0],
-    [1, 1, 0, 0],
-    [0, 0, 1, 1],
-    [0, 0, 1, 1],
-  ],
-  // 闪烁：恒星
-  [
-    [1, 1, 1],
-    [1, 0, 1],
-    [1, 1, 1],
-  ],
-  // 闪烁：恒星
-  [
-    [0, 0, 0, 0, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 0, 0, 0, 0],
-    [1, 1, 1, 0, 0, 0, 1, 1, 1],
-  ],
-  // 静态：两个方块
-  [
-    [1, 1, 0, 0, 1, 1],
-    [1, 1, 0, 0, 1, 1],
-    [0, 0, 1, 1, 0, 0],
-    [0, 0, 1, 1, 0, 0],
-  ],
-  // 消失：地基
-  [
-    [1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1],
-  ],
-  // 笑脸
-  [
-    [1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1],
-    [1, 1, 0, 1, 1],
-    [1, 1, 0, 1, 1],
-    [1, 1, 0, 1, 1],
-  ],
-  // 闪标（Beacon）
-  [
-    [1, 1, 0, 0],
-    [0, 1, 1, 0],
-    [0, 0, 0, 0],
-  ],
-  // 静态：大房子
-  [
-    [0, 1, 1, 0],
-    [1, 0, 0, 1],
-    [1, 0, 0, 1],
-    [0, 1, 1, 0],
-  ],
-  // 静态形状：方块（Block）
-  [
-    [1, 1, 0],
-    [1, 1, 0],
-    [0, 0, 0],
-  ],
-  // 飞镖（Beam）
-  [
-    [1, 1, 0],
-    [1, 0, 1],
-    [0, 1, 0],
-  ],
-  // 静态形状：蜂巢（Beehive）
-  [
-    [0, 1, 1, 0],
-    [1, 0, 0, 1],
-    [0, 1, 1, 0],
-  ],
-  // 滑翔机（Glider）（向右下角飞行）
-  [
-    [0, 1, 0],
-    [0, 0, 1],
-    [1, 1, 1],
-  ],
-  // 飞船（Spaceship）（向右飞行）
-  [
-    [0, 1, 1, 1, 1],
-    [1, 0, 0, 0, 1],
-    [0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 0],
-  ],
-  // 十字符（R-pentomino）（扩张缓慢
-  [
-    [0, 1, 1],
-    [1, 1, 0],
-    [0, 1, 0],
-  ],
-]);
+const localExamples = localStorage.getItem('creature-examples')
+const examples = ref<boolean[][][]>(localExamples ? JSON.parse(localExamples) : []);
+const show = computed(() => {
+  return examples.value.slice().sort((a, b) => {
+    return a.length - b.length;
+  })
+})
+watch(() => examples.value, () => {
+  // 去重
+  localStorage.setItem('creature-examples', JSON.stringify(examples.value));
+}, { deep: true })
 
+const active = ref<boolean[][]>();
+const select = (exa: boolean[][]) => {
+  active.value = exa;
+}
+const rotate = () => {
+  if (!active.value) return;
+  // 旋转90度
+}
+const remove = () => {
+  if (!active.value) return;
+  const index = examples.value.indexOf(active.value);
+  examples.value.splice(index, 1)
+}
 const push = (exampleIndex: number) => {
   const example = examples.value[exampleIndex];
   const exampleHeight = example.length;
@@ -142,20 +67,20 @@ const push = (exampleIndex: number) => {
   const startRow = Math.max(0, centerRow + rowOffset);
   const startCol = Math.max(0, centerCol + colOffset);
 
-  // 将案例放置到计算出的位置
-  for (let i = 0; i < exampleHeight; i++) {
-    for (let j = 0; j < exampleWidth; j++) {
-      if (startRow + i < MapHeight && startCol + j < MapWidth) {
-        store.grid[startRow + i][startCol + j] = !!example[i][j];
-      }
-    }
-  }
 };
+const addExample = (exam: boolean[][]) => {
+  // 检查是否已经存在
+  if (examples.value.some(t => JSON.stringify(t) === JSON.stringify(exam))) {
+    return;
+  }
+  examples.value.push(exam)
+}
+defineExpose({ addExample })
 </script>
 
-<style>
+<style lang="scss">
 .panel {
-  width: 160px;
+  width: 240px;
   padding: 6px;
   background-color: #aaa;
   overflow: hidden;
@@ -169,6 +94,12 @@ const push = (exampleIndex: number) => {
   overflow: hidden;
   margin: 0 6px 6px 0;
   cursor: pointer;
+  border: 2px solid transparent;
+
+  &.active,
+  &:hover {
+    border: 2px solid #84ca7e;
+  }
 }
 
 .row {
@@ -176,6 +107,7 @@ const push = (exampleIndex: number) => {
   display: flex;
   gap: 1px;
 }
+
 .cell {
   width: 7px;
   height: 7px;

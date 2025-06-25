@@ -1,202 +1,367 @@
-import { setAlive, ocean, world, pixelToUnit } from "./Ocean";
+import { setLight, ocean, world, times, unit, setRect } from "./Ocean";
 
 export type Size = {
   width: number;
   height: number;
 };
-export interface Position extends Size {
+export interface Position {
   x: number;
   y: number;
+  rows: number;
+  cols: number;
 }
-export type Cell = {
-  x: number; // 相对于position的x坐标
-  y: number; // 相对于position的y坐标
-  isAlive: boolean;
-};
+export type Direction = 0 | 1 | 2;
+
+export const Colors = [
+  "#FF0000", // 纯红
+  "#00FF00", // 纯绿
+  "#0000FF", // 纯蓝
+  "#FFFF00", // 纯黄
+  "#FF00FF", // 品红
+  "#00FFFF", // 青色
+  "#FFFFFF", // 纯白
+  "#FFA500", // 橙色
+  "#FF69B4", // 热粉
+  "#7CFC00", // 草绿
+  "#00BFFF", // 深天蓝
+  "#FF4500", // 橙红
+  "#FF6B6B", // 亮珊瑚
+  "#4ECDC4", // 绿松石
+  "#FFE66D", // 亮黄
+  "#7BED9F", // 薄荷绿
+  "#70C1B3", // 海蓝
+  "#FF9F1C", // 橙黄
+  "#FFDAB9", // 桃色
+  "#FF7F50", // 珊瑚
+  "#87CEEB", // 天蓝色
+  "#FFD700", // 金色
+  "#6A5ACD", // 中紫色
+  "#FFC0CB", // 淡紫色
+  "#FFA07A", // 浅珊瑚
+  "#98FB98", // 淡绿色
+  "#ADD8E6", // 淡蓝色
+  "#FFB6C1", // 淡粉红色
+  "#FFE4B5", // 米绸色
+  "#DDA0DD", // 淡紫色
+];
+
 export class Creature {
-  position: Position = { x: 0, y: 0, width: 0, height: 0 };
-  cells: Cell[][];
-  step = 2;
+  position: Position = { x: 0, y: 0, rows: 0, cols: 0 };
+  cells: boolean[][];
+  growInterval = Math.floor(Math.random() * 30 + 5);
+  moveInterval = Math.floor(Math.random() * 30 + 6);
+  step = 1; //Math.floor(Math.random() * 2 + 1);
   /**
    * 运动方向，0为静止
    * x:1为向右，2为向左
    * y:1为向下，2为向上
    */
-  direction: { x: 0 | 1 | 2; y: 0 | 1 | 2 };
+  direction = {
+    y: 1,
+    x: 0, //Math.random() < 0.5 ? (Math.random() < 0.5 ? 2 : 1) : 0,
+  };
   isAlive = true;
+  isStatic = false;
+  color = Colors[Math.floor(Math.random() * Colors.length)];
+  initial: Creature | undefined;
   /**
    * 构造函数
    * @param size 大小，默认为3
    */
   constructor(size: number = 3) {
-    this.direction = {
-      x: Math.floor(Math.random() * 2.5 + 0.5) as 0 | 1 | 2,
-      y: Math.floor(Math.random() * 2.5 + 0.5) as 0 | 1 | 2,
-    };
-
     if (!size || size < 2) size = Math.floor(Math.random() * 3 + 2);
     this.cells = [];
     for (let i = 0; i < size; i++) {
       if (!this.cells[i]) this.cells[i] = [];
       for (let j = 0; j < size; j++) {
-        const isAlive = Math.random() > 0.5;
-        this.cells[i][j] = { x: j, y: i, isAlive };
+        this.cells[i][j] = Math.random() > 0.5;
       }
     }
-
-    const halfw = Math.floor(world.width / 2);
-    const halfh = Math.floor(world.height / 2);
 
     // 随机生成一个位置，位置为中心，大小为size*size，但是要校验当时是否与其他的creature重叠
     // 如果重叠，重新生成
     let isOverlap = true;
     let count = 0;
     while (isOverlap) {
-      count++;
-      if (count > 30) {
+      if (count++ > 30) {
+        this.isAlive = false;
         return;
       }
-      const x = pixelToUnit(
-        halfw + Math.floor(Math.random() * halfw - halfw / 2)
-      );
-      const y = pixelToUnit(
-        halfh + Math.floor(Math.random() * halfh - halfh / 2)
-      );
-      this.position = {
-        x,
-        y,
-        width: size,
-        height: size,
-      };
+      let x = Math.floor(Math.random() * (world.cols - size));
+      const y = Math.floor((Math.random() * world.rows) / 8);
+      this.position = { x, y, rows: size, cols: size };
       this.updateSize();
       isOverlap = ocean.value.some((c) => !!this.checkCollision(c));
     }
 
-    ocean.value.push(this);
+    this.initial = JSON.parse(JSON.stringify(this)) as Creature;
   }
   /**
    * 更新size
    */
   updateSize() {
-    let minw = this.position.width;
+    if (!this.isAlive) return;
+    let minw = this.position.cols;
     let maxw = 0;
-    let minh = this.position.height;
+    let minh = this.position.rows;
     let maxh = 0;
     for (let i = 0; i < this.cells.length; i++) {
       for (let j = 0; j < this.cells[i].length; j++) {
-        if (this.cells[i][j]?.isAlive) {
-          minw = Math.min(minw, j + 1);
-          maxw = Math.max(maxw, j + 1);
-          minh = Math.min(minh, i + 1);
-          maxh = Math.max(maxh, i + 1);
+        if (this.cells[i][j]) {
+          minw = Math.min(minw, j);
+          maxw = Math.max(maxw, j);
+          minh = Math.min(minh, i);
+          maxh = Math.max(maxh, i);
         }
       }
     }
     // 需要修正position
     this.position.x = this.position.x + minw;
     this.position.y = this.position.y + minh;
-    this.position.width = maxw - minw;
-    this.position.height = maxh - minh;
+    this.position.cols = maxw - minw + 1;
+    this.position.rows = maxh - minh + 1;
+    if (this.position.cols <= 0 || this.position.rows <= 0) {
+      this.isAlive = false;
+      return;
+    }
+    // 修正cells
+    const newCells = Array(this.position.rows)
+      .fill(null)
+      .map(() => Array(this.position.cols).fill(false));
+    for (let i = minh; i <= maxh; i++) {
+      for (let j = minw; j <= maxw; j++) {
+        newCells[i - minh][j - minw] = this.cells[i][j];
+      }
+    }
+    this.cells = newCells;
   }
   /**
    * 检测边界
    */
-  checkBound(width: number, height: number) {
+  checkBound() {
+    if (!this.isAlive) return;
+    const { cols, rows } = world;
     if (this.position.x <= 0) {
       this.direction.x = 1;
     }
     if (this.position.y <= 0) {
       this.direction.y = 1;
     }
-    if (this.position.x + this.position.width >= width) {
+    if (this.position.x + this.position.cols >= cols) {
       this.direction.x = 2;
     }
-    if (this.position.y + this.position.height >= height) {
-      this.direction.y = 2;
+    if (this.position.y + this.position.rows >= rows) {
+      // this.direction.y = 2;
+      this.isAlive = false;
     }
   }
   /**
    * 检测碰撞
    */
   checkCollision(target: Creature) {
-    // 检测两者区域是否靠近，距离小于等于1则碰撞
-    const { x, y, width, height } = this.position;
-    const { x: tx, y: ty, width: twidth, height: theight } = target.position;
+    if (!this.isAlive || !target.isAlive) return false;
+
+    // 边界检测优化
     if (
-      x + width + 1 < tx ||
-      x > tx + twidth + 1 ||
-      y + height + 1 < ty ||
-      y > ty + theight + 1
+      this.position.x + this.position.cols <= target.position.x ||
+      this.position.x >= target.position.x + target.position.cols ||
+      this.position.y + this.position.rows <= target.position.y ||
+      this.position.y >= target.position.y + target.position.rows
     ) {
       return false;
     }
-    return true;
-  }
-  run() {
-    // 检测边界
-    this.checkBound(world.width, world.height);
-    // 检测碰撞
-    // const targets = ocean.value
-    //   .filter((t) => t !== this)
-    //   .filter((t) => this.checkCollision(t));
 
-    // 移动
+    // 使用更高效的碰撞检测算法
+    const x1 = Math.max(this.position.x, target.position.x);
+    const x2 = Math.min(
+      this.position.x + this.position.cols,
+      target.position.x + target.position.cols
+    );
+    const y1 = Math.max(this.position.y, target.position.y);
+    const y2 = Math.min(
+      this.position.y + this.position.rows,
+      target.position.y + target.position.rows
+    );
 
-    // 元胞自动机生存检测
-    const newGrid = [] as Cell[][];
-    for (let i = 0; i < this.cells.length; i++) {
-      if (!newGrid[i]) newGrid[i] = [];
-      for (let j = 0; j < this.cells[i].length; j++) {
-        newGrid[i][j] = { x: j, y: i, isAlive: false };
+    // 检查重叠区域内的活跃细胞
+    for (let i = y1 - this.position.y; i < y2 - this.position.y; i++) {
+      for (let j = x1 - this.position.x; j < x2 - this.position.x; j++) {
+        if (
+          i >= 0 &&
+          i < this.cells.length &&
+          j >= 0 &&
+          j < this.cells[i].length &&
+          this.cells[i][j]
+        ) {
+          const ti = y1 - target.position.y + i;
+          const tj = x1 - target.position.x + j;
+          if (
+            ti >= 0 &&
+            ti < target.cells.length &&
+            tj >= 0 &&
+            tj < target.cells[ti].length &&
+            target.cells[ti][tj]
+          ) {
+            return true;
+          }
+        }
       }
     }
-    for (let i = 0; i < this.cells.length; i++) {
-      for (let j = 0; j < this.cells[i].length; j++) {
+    return false;
+  }
+  getAliveCount() {
+    if (!this.isAlive) return 0;
+    return this.cells.flat().filter((cell) => cell).length;
+  }
+  grow() {
+    if (!this.isAlive || this.isStatic) return;
+    if (times.value % this.growInterval !== 0) return;
+    // 元胞自动机生存检测
+    const newGrid = Array(this.position.rows + 2)
+      .fill(null)
+      .map(() => Array(this.position.cols + 2).fill(false));
+    let hasChange = false;
+    for (let ri = -1; ri < this.position.rows + 1; ri++) {
+      for (let ci = -1; ci < this.position.cols + 1; ci++) {
         // 计算周围活跃细胞数量
         let neighbors = 0;
         for (let x = -1; x <= 1; x++) {
           for (let y = -1; y <= 1; y++) {
             if (x === 0 && y === 0) continue;
-            const ni = i + x;
-            const nj = j + y;
+            const nri = ri + y;
+            const nci = ci + x;
             if (
-              ni >= 0 &&
-              ni < this.position.width &&
-              nj >= 0 &&
-              nj < this.position.height &&
-              this.cells[ni][nj].isAlive
+              nri >= 0 &&
+              nri < this.cells.length &&
+              nci >= 0 &&
+              nci < this.cells[nri].length &&
+              this.cells[nri][nci]
             ) {
               neighbors++;
             }
           }
         }
+        let cell;
+        if (ri > -1 && ri < this.cells.length) {
+          if (ci > -1 && ci < this.cells[ri].length) {
+            cell = this.cells[ri][ci];
+          }
+        }
 
-        if (this.cells[i][j].isAlive) {
-          newGrid[i][j].isAlive = neighbors === 2 || neighbors === 3;
+        if (cell) {
+          const ns = neighbors === 2 || neighbors === 3;
+          newGrid[ri + 1][ci + 1];
+          if (ns === false) hasChange = true;
+          newGrid[ri + 1][ci + 1] = ns;
         } else {
-          newGrid[i][j].isAlive = neighbors === 3;
+          newGrid[ri + 1][ci + 1] = neighbors === 3;
+          if (neighbors === 3) hasChange = true;
         }
       }
     }
-    this.cells = newGrid;
-
-    // 判断死亡
-    if (this.cells.every((row) => row.every((cell) => !cell.isAlive))) {
-      this.isAlive = false;
+    if (!hasChange) {
+      this.isStatic = true;
       return;
     }
+    this.cells = newGrid;
+    this.position.x--;
+    this.position.y--;
+    this.position.cols += 2;
+    this.position.rows += 2;
+  }
+  run() {
+    this.grow();
 
+    // 检测碰撞
+    ocean.value
+      .filter((t) => t !== this && t.isAlive)
+      .forEach((t) => {
+        if (this.checkCollision(t)) {
+          const aliveCount = this.getAliveCount();
+          const tAliveCount = t.getAliveCount();
+          if (aliveCount > tAliveCount) {
+            // 死亡
+            t.isAlive = false;
+          } else {
+            // 死亡
+            this.isAlive = false;
+          }
+        }
+      });
+
+    const aliveCount = this.getAliveCount();
+    if (aliveCount > 20) {
+      this.direction.x = 0;
+    }
+    // 判断死亡
+    if (aliveCount === 0) {
+      this.isAlive = false;
+    } else if (this.cells.every((row) => row.every((cell) => !cell))) {
+      this.isAlive = false;
+    }
+    if (!this.isAlive) return;
+    this.updateSize();
+
+    this.move();
+
+    this.draw();
+  }
+  draw() {
+    if (!this.isAlive) return;
+    // 绘制边框
+    // setRect({
+    //   x: this.position.x * unit,
+    //   y: this.position.y * unit,
+    //   width: this.position.cols * unit,
+    //   height: this.position.rows * unit,
+    // });
     // 绘制
     for (let i = 0; i < this.cells.length; i++) {
       for (let j = 0; j < this.cells[i].length; j++) {
-        if (this.cells[i][j]?.isAlive) {
-          const cell = this.cells[i][j];
+        if (this.cells[i][j]) {
           // 绘制
-          const x = this.position.x + cell.x;
-          const y = this.position.y + cell.y;
-          setAlive(y, x);
+          const x = this.position.x + j;
+          const y = this.position.y + i;
+          setLight(y, x, this.color);
         }
       }
     }
+  }
+  move() {
+    if (!this.isAlive) return;
+    if (times.value % this.moveInterval !== 0) return;
+
+    if (times.value % 10 === 0 && Math.random() > 0.5) {
+      this.moveInterval = Math.max(4, this.moveInterval - 1);
+    }
+    // 移动
+    if (this.direction.x === 1) {
+      this.position.x += this.step;
+    } else if (this.direction.x === 2) {
+      this.position.x -= this.step;
+    }
+    if (this.direction.y === 1) {
+      this.position.y += this.step;
+    } else if (this.direction.y === 2) {
+      this.position.y -= this.step;
+    }
+    // 检测边界
+    this.checkBound();
+  }
+  // 捕获点击事件
+  linstenClick(row: number, col: number) {
+    // 判断是否点击在生命上
+    if (
+      row >= this.position.y &&
+      row < this.position.y + this.position.rows &&
+      col >= this.position.x &&
+      col < this.position.x + this.position.cols // &&
+      // this.cells[row - this.position.y][col - this.position.x]
+    ) {
+      this.onClick(this, this.initial);
+    }
+  }
+  onClick(_this: Creature, initial?: Creature) {
+    console.log("onClick", initial);
   }
 }

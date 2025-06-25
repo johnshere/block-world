@@ -5,17 +5,12 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
-import { createOcean, storm, unit } from './Ocean';
-import { Creature } from './Creature';
+import { createOcean, storm } from './Ocean';
 
-let width = screen.availWidth * 0.5;
-width = width - (width % (unit * 10));
-let height = screen.availHeight * 0.8;
-height = height - (height % (unit * 10));
 
 const world = ref<HTMLElement>();
 onMounted(() => {
-  createOcean({ width, height }, world.value!);
+  createOcean(world.value!);
   storm()
   // let creature: any;
   // setInterval(() => {

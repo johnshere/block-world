@@ -1,26 +1,54 @@
 <template>
     <div class="main">
         <div class="operate">
-            <button @click="run">运转</button>
+            <button @click="start">运转</button>
             <button @click="stop">停止</button>
             <button @click="reset">重置</button>
-            <span class="count">count: {{ activeCount }}</span>
-            <span class="count">times: {{ store.times }}</span>
+            <span class="count">count: {{ ocean?.length }}</span>
+            <span class="count">times: {{ times }}</span>
         </div>
         <div class="cosmos">
             <World />
-            <Panel />
+            <Panel ref="panel" />
         </div>
     </div>
 </template>
 <script lang="ts" setup>
 import World from "./world.vue";
 import Panel from "./panel.vue";
-import { reset, run, store, stop, } from "./data";
-import { computed } from "vue";
-import { ocean } from "./Ocean";
+import { ref } from "vue";
+import { reset, run, stop, ocean, times } from "./Ocean";
+import { Creature } from "./Creature";
 
-const activeCount = computed(() => ocean.value.length)
+const panel = ref<InstanceType<typeof Panel>>();
+const generate = () => {
+    if (times.value % 6 !== 0 || ocean.value.length > 70) return;
+    const ran = Math.random();
+    if (ran < 0.7) {
+        return;
+    }
+    let creature: Creature
+    if (ran < 0.75) {
+        creature = new Creature();
+    } else if (ran < 0.85) {
+        creature = new Creature(4);
+    } else if (ran < 0.9) {
+        creature = new Creature(5);
+    } else {
+        creature = new Creature(6);
+    }
+    creature.onClick = (_, initial) => {
+        console.log(1)
+        if (initial) {
+            panel.value?.addExample(initial.cells)
+        }
+    }
+    ocean.value.push(creature)
+}
+const start = () => {
+
+    run(generate)
+}
 </script>
 <style lang="scss">
 .main {
