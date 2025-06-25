@@ -2,14 +2,27 @@
   <div class="panel-wrap">
     <div class="operate">
       <button @click="rotate">旋转</button>
+      <button @click="addExample()">添加</button>
       <button @click="remove">删除</button>
-      <!-- <span>选中：{{ active }}</span> -->
+      <button v-if="!type" @click="toSecond">to 2</button>
     </div>
     <div class="panel">
-      <div v-for="(example, ei) in show" class="example" :class="{ active: active === example }"
-        @click="select(example)">
-        <div v-for="(row, rowIndex) in example" :key="rowIndex" class="row">
-          <div v-for="(cell, colIndex) in row" :key="colIndex" :class="['cell', { active: !!cell }]" />
+      <div v-if="real">
+        <span>dir:x-{{ translateDir(real.direction.x, 'x') }},y-{{ translateDir(real.direction.y, 'y') }}</span>
+        <span>speed:{{ real.moveInterval }}</span>
+        <span>grow:{{ real.growInterval }}</span>
+      </div>
+      <div class="example" style="margin-right: auto;">
+        <div v-for="(row, rowIndex) in example?.cells || []" :key="rowIndex" class="row">
+          <div v-for="(cell, colIndex) in row" :key="colIndex" class="cell"
+            :style="!!cell ? `background:${example?.color}` : ''" @click="toggle(rowIndex, colIndex)" />
+        </div>
+      </div>
+      <br />
+      <div v-for="(it, ei) in show" class="example" :class="{ active: active === it }" @click="select(it)">
+        <div v-for="(row, rowIndex) in it.cells" :key="rowIndex" class="row">
+          <div v-for="(cell, colIndex) in row" :key="colIndex" class="cell"
+            :style="!!cell ? `background:${it.color}` : ''" />
         </div>
       </div>
     </div>
@@ -20,44 +33,100 @@
 import { ref, watch } from 'vue';
 import { MapHeight, MapWidth } from '@/consts/config';
 import { computed } from '@vue/reactivity';
+import { Creature } from './Creature';
 
-const localExamples = localStorage.getItem('creature-examples')
-const examples = ref<boolean[][][]>(localExamples ? JSON.parse(localExamples) : []);
-const show = computed(() => {
-  return examples.value.slice().sort((a, b) => {
-    return a.length - b.length;
-  })
+const props = defineProps({
+  type: {
+    type: String,
+    default: '',
+  },
 })
-watch(() => examples.value, () => {
+const storageKey = computed(() => `creature-examples${props.type}`)
+
+const localExamples = localStorage.getItem(storageKey.value)
+const examStore = ref<Creature[]>([]);
+
+const translateDir = (dir: number, type: 'x' | 'y') => {
+  if (type === 'x') {
+    return dir === 1 ? '右' : dir === -1 ? '左' : '';
+  } else {
+    return dir === 1 ? '下' : dir === -1 ? '上' : '';
+  }
+}
+const toSecond = () => {
+  localStorage.setItem(storageKey.value + '2', JSON.stringify(examStore.value));
+}
+const sortBySize = (arr: Creature[]) => {
+  return arr.sort((a, b) => {
+    const acells = a.cells || []
+    const bcells = b.cells || []
+    const diff = acells.length - bcells.length
+    if (diff === 0) {
+      const alivea = acells.slice().flat().filter(Boolean).length;
+      const aliveb = bcells.slice().flat().filter(Boolean).length;
+      return alivea - aliveb
+    } else {
+      return diff
+    }
+  })
+}
+if (localExamples) {
+  const exams = localExamples ? JSON.parse(localExamples) : []
+  examStore.value = sortBySize(exams).map((exam: any) => {
+    exam.color = ''
+    const c = new Creature(exam.cells);
+    return c
+  })
+  localStorage.setItem(storageKey.value, JSON.stringify(examStore.value));
+}
+
+const active = ref<Creature>();
+const example = ref<Creature>();
+const real = ref<Creature>();
+
+const show = computed(() => {
+  return sortBySize(examStore.value.slice())
+})
+watch(() => examStore.value, () => {
   // 去重
-  localStorage.setItem('creature-examples', JSON.stringify(examples.value));
+  localStorage.setItem(storageKey.value, JSON.stringify(examStore.value));
 }, { deep: true })
 
-const active = ref<boolean[][]>();
-const select = (exa: boolean[][]) => {
+const toggle = (row: number, col: number) => {
+  if (!example.value) return;
+  const cur = example.value as any;
+  const cells = cur.cells;
+  if (!cells[row]) return
+  cells[row][col] = !cells[row][col];
+}
+const select = (exa: Creature) => {
   active.value = exa;
+  example.value = exa;
 }
 const rotate = () => {
-  if (!active.value) return;
-  // 旋转90度
+  if (!example.value) return;
+  const cur = example.value as any;
+  const cells = cur.cells;
+  const newCells = cells[0].map((_, index) => cells.map(row => row[index]).reverse());
+  cur.cells = newCells;
 }
 const remove = () => {
   if (!active.value) return;
-  const index = examples.value.indexOf(active.value);
-  examples.value.splice(index, 1)
+  const index = examStore.value.indexOf(active.value);
+  examStore.value.splice(index, 1)
 }
-const push = (exampleIndex: number) => {
-  const example = examples.value[exampleIndex];
-  const exampleHeight = example.length;
-  const exampleWidth = example[0].length;
+const push = (exami: number) => {
+  const exam = examStore.value[exami];
+  const examHeight = exam.length;
+  const examWidth = exam[0].length;
 
   // 计算中心区域起始位置
-  const centerRow = Math.floor((MapHeight - exampleHeight) / 2);
-  const centerCol = Math.floor((MapWidth - exampleWidth) / 2);
+  const centerRow = Math.floor((MapHeight - examHeight) / 2);
+  const centerCol = Math.floor((MapWidth - examWidth) / 2);
 
   // 在中心区域随机偏移
-  const maxRowOffset = Math.max(0, MapHeight - exampleHeight - centerRow);
-  const maxColOffset = Math.max(0, MapWidth - exampleWidth - centerCol);
+  const maxRowOffset = Math.max(0, MapHeight - examHeight - centerRow);
+  const maxColOffset = Math.max(0, MapWidth - examWidth - centerCol);
 
   const rowOffset =
     Math.floor(Math.random() * (maxRowOffset * 2 + 1)) - maxRowOffset;
@@ -68,14 +137,26 @@ const push = (exampleIndex: number) => {
   const startCol = Math.max(0, centerCol + colOffset);
 
 };
-const addExample = (exam: boolean[][]) => {
-  // 检查是否已经存在
-  if (examples.value.some(t => JSON.stringify(t) === JSON.stringify(exam))) {
-    return;
+const addExample = (exam?: Creature) => {
+  if (!exam && example.value) {
+    exam = example.value;
   }
-  examples.value.push(exam)
+  // 检查是否已经存在
+  for (let exa of examStore.value) {
+
+    if (JSON.stringify(exa.cells) === JSON.stringify(exam)) {
+      return;
+    }
+  }
+  active.value = exam;
+  examStore.value.push(exam)
 }
-defineExpose({ addExample })
+
+const showExample = (exam: Creature, _real: Creature) => {
+  example.value = exam;
+  real.value = _real;
+}
+defineExpose({ showExample, addExample })
 </script>
 
 <style lang="scss">
@@ -94,11 +175,11 @@ defineExpose({ addExample })
   overflow: hidden;
   margin: 0 6px 6px 0;
   cursor: pointer;
-  border: 2px solid transparent;
+  border: 3px solid transparent;
 
   &.active,
   &:hover {
-    border: 2px solid #84ca7e;
+    border: 3px solid #84ca7e;
   }
 }
 

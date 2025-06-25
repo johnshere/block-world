@@ -1,4 +1,4 @@
-import { setLight, ocean, world, times, unit, setRect } from "./Ocean";
+import { setLight, ocean, world, times } from "./Ocean";
 
 export type Size = {
   width: number;
@@ -10,6 +10,11 @@ export interface Position {
   rows: number;
   cols: number;
 }
+/**
+ * 运动方向，0为静止
+ * x:1为向右，2为向左
+ * y:1为向下，2为向上
+ */
 export type Direction = 0 | 1 | 2;
 
 export const Colors = [
@@ -45,6 +50,15 @@ export const Colors = [
   "#DDA0DD", // 淡紫色
 ];
 
+function RanDirection(type?: "x" | "y") {
+  if (type === "x") {
+    return 0; //Math.random() < 0.1 ? (Math.random() < 0.5 ? 2 : 1) : 0;
+  } else if (type === "y") {
+    return Math.random() < 0.5 ? 2 : 1;
+  }
+  return Math.random() < 0.5 ? 2 : 1;
+}
+
 export class Creature {
   position: Position = { x: 0, y: 0, rows: 0, cols: 0 };
   cells: boolean[][];
@@ -56,9 +70,9 @@ export class Creature {
    * x:1为向右，2为向左
    * y:1为向下，2为向上
    */
-  direction = {
+  direction: { x: Direction; y: Direction } = {
     y: 1,
-    x: 0, //Math.random() < 0.5 ? (Math.random() < 0.5 ? 2 : 1) : 0,
+    x: RanDirection("x"),
   };
   isAlive = true;
   isStatic = false;
@@ -66,32 +80,34 @@ export class Creature {
   initial: Creature | undefined;
   /**
    * 构造函数
-   * @param size 大小，默认为3
+   * @param initial 大小，默认为3
    */
-  constructor(size: number = 3) {
-    if (!size || size < 2) size = Math.floor(Math.random() * 3 + 2);
-    this.cells = [];
-    for (let i = 0; i < size; i++) {
-      if (!this.cells[i]) this.cells[i] = [];
-      for (let j = 0; j < size; j++) {
-        this.cells[i][j] = Math.random() > 0.5;
+  constructor(initial: boolean[][] | Creature | number = 3) {
+    if (Array.isArray(initial)) {
+      // 二维数组
+      this.cells = initial;
+      this.position.rows = initial.length;
+      this.position.cols = initial[0].length;
+    } else if (
+      typeof initial !== "number" &&
+      initial?.cells &&
+      Array.isArray(initial.cells)
+    ) {
+      this.cells = initial.cells;
+      this.position.rows = initial.cells.length;
+      this.position.cols = initial.cells[0].length;
+      if (initial.color) this.color = initial.color;
+    } else {
+      initial = initial as number;
+      if (!initial || initial < 2) initial = Math.floor(Math.random() * 3 + 2);
+      this.cells = [];
+      for (let i = 0; i < initial; i++) {
+        if (!this.cells[i]) this.cells[i] = [];
+        for (let j = 0; j < initial; j++) {
+          this.cells[i][j] = Math.random() > 0.5;
+        }
       }
-    }
-
-    // 随机生成一个位置，位置为中心，大小为size*size，但是要校验当时是否与其他的creature重叠
-    // 如果重叠，重新生成
-    let isOverlap = true;
-    let count = 0;
-    while (isOverlap) {
-      if (count++ > 30) {
-        this.isAlive = false;
-        return;
-      }
-      let x = Math.floor(Math.random() * (world.cols - size));
-      const y = Math.floor((Math.random() * world.rows) / 8);
-      this.position = { x, y, rows: size, cols: size };
-      this.updateSize();
-      isOverlap = ocean.value.some((c) => !!this.checkCollision(c));
+      this.position.rows = this.position.cols = initial;
     }
 
     this.initial = JSON.parse(JSON.stringify(this)) as Creature;
@@ -249,13 +265,12 @@ export class Creature {
         }
 
         if (cell) {
-          const ns = neighbors === 2 || neighbors === 3;
-          newGrid[ri + 1][ci + 1];
-          if (ns === false) hasChange = true;
-          newGrid[ri + 1][ci + 1] = ns;
+          newGrid[ri + 1][ci + 1] = neighbors === 2 || neighbors === 3;
         } else {
           newGrid[ri + 1][ci + 1] = neighbors === 3;
-          if (neighbors === 3) hasChange = true;
+        }
+        if (newGrid[ri + 1][ci + 1] !== cell) {
+          hasChange = true;
         }
       }
     }
@@ -268,6 +283,12 @@ export class Creature {
     this.position.y--;
     this.position.cols += 2;
     this.position.rows += 2;
+  }
+  pickUp() {
+    if (!this.isAlive || this.isStatic) return;
+    this.moveInterval = Math.max(4, this.moveInterval - 1);
+    this.growInterval = Math.max(5, this.growInterval - 1);
+    this.direction.x = RanDirection("x");
   }
   run() {
     this.grow();
@@ -282,17 +303,17 @@ export class Creature {
           if (aliveCount > tAliveCount) {
             // 死亡
             t.isAlive = false;
+            this.pickUp();
           } else {
             // 死亡
             this.isAlive = false;
+            t.pickUp();
           }
         }
       });
 
     const aliveCount = this.getAliveCount();
-    if (aliveCount > 20) {
-      this.direction.x = 0;
-    }
+
     // 判断死亡
     if (aliveCount === 0) {
       this.isAlive = false;
@@ -332,7 +353,7 @@ export class Creature {
     if (times.value % this.moveInterval !== 0) return;
 
     if (times.value % 10 === 0 && Math.random() > 0.5) {
-      this.moveInterval = Math.max(4, this.moveInterval - 1);
+      this.pickUp();
     }
     // 移动
     if (this.direction.x === 1) {

@@ -4,51 +4,91 @@
             <button @click="start">运转</button>
             <button @click="stop">停止</button>
             <button @click="reset">重置</button>
+            <button @click="remove">消除</button>
             <span class="count">count: {{ ocean?.length }}</span>
             <span class="count">times: {{ times }}</span>
         </div>
         <div class="cosmos">
             <World />
             <Panel ref="panel" />
+            <Panel ref="panel2" type="2" />
         </div>
     </div>
 </template>
 <script lang="ts" setup>
 import World from "./world.vue";
 import Panel from "./panel.vue";
-import { ref } from "vue";
-import { reset, run, stop, ocean, times } from "./Ocean";
+import { onMounted, ref } from "vue";
+import { reset, run, stop, ocean, times, world } from "./Ocean";
 import { Creature } from "./Creature";
 
 const panel = ref<InstanceType<typeof Panel>>();
+// 更均匀的类型分布
+const typeRanges = [
+    { max: 0.6, size: 3 },  // 60% 基础生物
+    { max: 0.8, size: 4 },  // 20% 中等生物
+    { max: 0.9, size: 5 }, // 10% 大型生物
+    { max: 0.95, size: 6 }, // 5% 大型生物
+    { max: 0.98, size: 7 },  // 3% 巨型生物
+    { max: 1.00, size: 8 }   // 2% 巨型生物
+];
+const check = ref<Creature>()
+const remove = () => {
+    if (!check.value) return;
+    check.value.isAlive = false
+}
 const generate = () => {
-    if (times.value % 6 !== 0 || ocean.value.length > 70) return;
-    const ran = Math.random();
-    if (ran < 0.7) {
-        return;
+    // 使用更均匀的随机分布
+    let ran = Math.random();
+
+    // 根据当前生物数量动态调整生成概率
+    const densityFactor = (ocean.value.length / 70);
+    if (ran < densityFactor) return;
+
+    let creature: Creature | undefined = undefined;
+    if (ran > 0.1) {
+        const localExamples = localStorage.getItem('creature-examples')
+        const examples = localExamples ? JSON.parse(localExamples) : []
+        const exam = examples[Math.floor(Math.random() * examples.length)];
+        creature = new Creature(exam);
     }
-    let creature: Creature
-    if (ran < 0.75) {
-        creature = new Creature();
-    } else if (ran < 0.85) {
-        creature = new Creature(4);
-    } else if (ran < 0.9) {
-        creature = new Creature(5);
-    } else {
-        creature = new Creature(6);
+    if (!creature) {
+        ran = Math.random();
+        const selectedType = typeRanges.find(range => ran <= range.max);
+        creature = new Creature(selectedType?.size);
+        creature.color = '#fff'
     }
-    creature.onClick = (_, initial) => {
-        console.log(1)
-        if (initial) {
-            panel.value?.addExample(initial.cells)
-        }
+
+
+    // 随机生成一个位置，位置为中心，大小为size*size，但是要校验当时是否与其他的creature重叠
+    let x = Math.floor(Math.random() * (world.cols - creature.position.cols));
+    const y = Math.floor((Math.random() * world.rows) / 8);
+    creature.position.x = x;
+    creature.position.y = y;
+
+    // 确保新生物不会与现有生物重叠
+    const canPlace = ocean.value.every(c => !c.checkCollision(creature));
+    if (canPlace) {
+        creature.onClick = (real, initial) => {
+            check.value = real;
+            if (real) {
+                real.color = '#FF0000'
+                setTimeout(() => {
+                    real.moveInterval = Math.max(4, real.moveInterval - 8);
+                }, 5000);
+            }
+            if (initial) {
+                initial.color = '#FF0000'
+                panel.value?.showExample(initial, real);
+            }
+        };
+        ocean.value.push(creature);
     }
-    ocean.value.push(creature)
 }
 const start = () => {
-
     run(generate)
 }
+onMounted(start)
 </script>
 <style lang="scss">
 .main {
@@ -64,7 +104,7 @@ const start = () => {
     margin: 0 auto 12px;
 
     button {
-        padding: 6px 12px;
+        padding: 3px 6px;
         margin-left: 6px;
     }
 

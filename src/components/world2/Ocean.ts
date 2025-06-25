@@ -11,15 +11,14 @@ export const ctx = ref<CanvasRenderingContext2D | null>(null);
 
 export const ocean = ref<Creature[]>([]);
 
-const frameTime = ref(20);
-const runningId = ref<number | undefined>(undefined);
+const runningTimer = ref<number | undefined>(undefined);
 
 export function pixelToUnit(pixel: number) {
   return Math.floor(pixel / unit);
 }
 
 export function createOcean(wrap: HTMLElement) {
-  let width = screen.availWidth * 0.6;
+  let width = screen.availWidth * 0.5;
   width = width - (width % (unit * 10));
   let height = screen.availHeight * 0.9;
   height = height - (height % (unit * 10));
@@ -53,7 +52,7 @@ export function createOcean(wrap: HTMLElement) {
 
 export const times = ref(-1);
 
-export function storm() {
+function storm() {
   if (!canvas.value || !ctx.value) return;
 
   times.value++;
@@ -125,11 +124,12 @@ export function setLight(row: number, col: number, fill = "#fff") {
 }
 
 export const stop = () => {
-  runningId && clearInterval(runningId.value);
-  runningId.value = undefined;
+  runningTimer && clearInterval(runningTimer.value);
+  runningTimer.value = undefined;
 };
 export const reset = () => {
-  stop();
+  // stop();
+  ocean.value = [];
 };
 reset();
 
@@ -138,20 +138,20 @@ export const fall = (num: number = 1) => {
     throw new Error("num must be greater than 0");
   }
 };
-export const run = (cb?: Function) => {
+export const run = (beforeEach?: Function) => {
   stop();
-  // 使用现有的grid引用
-  runningId.value = setInterval(() => {
-    cb?.();
+
+  let frameTime = 39; // 默认50ms，即20FPS
+
+  const running = () => {
+    beforeEach?.();
 
     storm();
 
     // fall();
-    // 检查是否所有细胞都已死亡
-  }, frameTime.value);
-
-  // 返回清理函数
-  return {
-    id: runningId.value,
+    runningTimer.value = undefined;
+    run(beforeEach);
   };
+
+  runningTimer.value = setTimeout(running, frameTime);
 };
