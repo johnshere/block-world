@@ -50,9 +50,9 @@ export const Colors = [
 
 function RanDirection(type?: "x" | "y") {
   if (type === "x") {
-    return Math.random() < 0.1 ? (Math.random() < 0.5 ? -1 : 1) : 0;
+    return Math.random() < 0.4 ? (Math.random() < 0.5 ? -1 : 1) : 0;
   } else if (type === "y") {
-    return Math.random() < 0.1 ? (Math.random() < 0.5 ? -1 : 1) : 0;
+    return Math.random() < 0.4 ? (Math.random() < 0.3 ? -1 : 1) : 0;
   }
   return Math.random() < 0.5 ? -1 : 1;
 }
@@ -299,12 +299,12 @@ export class Creature {
     this.moveInterval = Math.max(4, this.moveInterval - 1);
     this.growInterval = Math.max(5, this.growInterval - 1);
     this.direction.x = RanDirection("x");
-    if (Math.random() > 0.8) {
+    if (Math.random() > 0.9) {
       this.direction.y = RanDirection("y");
     }
   }
-  private lastGrowTime = 0;
-  private lastMoveTime = 0;
+  lastGrowTime = 0;
+  lastMoveTime = 0;
   run(deltaTime: number) {
     // 更新时间累积器
     this.lastGrowTime += deltaTime;
@@ -349,9 +349,10 @@ export class Creature {
   move() {
     if (!this.isAlive) return;
 
-    if (Math.random() > 0.9) {
+    if (Math.random() > 0.8) {
       this.pickUp();
     }
+
     // 移动
     this.position.x += this.step * this.direction.x;
     this.position.y += this.step * this.direction.y;

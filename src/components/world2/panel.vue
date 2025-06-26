@@ -3,7 +3,7 @@
     <div class="operate">
       <button @click="add">添加</button>
       <button @click="rotate">旋转</button>
-      <button @click="addExample()">留存</button>
+      <button @click="saveExample()">留存</button>
       <button @click="remove">删除</button>
       <button v-if="!type" @click="toSecond">to 2</button>
     </div>
@@ -32,10 +32,9 @@
 
 <script lang="ts" setup>
 import { ref, watch } from 'vue';
-import { MapHeight, MapWidth } from '@/consts/config';
 import { computed } from '@vue/reactivity';
 import { Creature } from './Creature';
-import { ocean, pixelToUnit, world } from './Ocean';
+import { ocean, world } from './Ocean';
 
 const props = defineProps({
   type: {
@@ -96,6 +95,11 @@ watch(() => examStore.value, () => {
 const add = () => {
   const exa = new Creature(active.value.cells)
   exa.position.x = Math.floor(Math.random() * (world.cols - exa.cells.length));
+  exa.onClick = (real, initial) => {
+    if (initial) {
+      showExample(initial, real)
+    }
+  }
   ocean.value.push(exa);
 }
 const toggle = (row: number, col: number) => {
@@ -106,7 +110,9 @@ const toggle = (row: number, col: number) => {
   cells[row][col] = !cells[row][col];
 }
 const select = (exa: Creature) => {
-  active.value = exa;
+  if (!exa) return;
+  exa = JSON.parse(JSON.stringify(exa)) as Creature;
+  active.value = new Creature(exa.cells);
 }
 const rotate = () => {
   if (!active.value) return;
@@ -120,29 +126,7 @@ const remove = () => {
   const index = examStore.value.indexOf(active.value);
   examStore.value.splice(index, 1)
 }
-const push = (exami: number) => {
-  const exam = examStore.value[exami];
-  const examHeight = exam.length;
-  const examWidth = exam[0].length;
-
-  // 计算中心区域起始位置
-  const centerRow = Math.floor((MapHeight - examHeight) / 2);
-  const centerCol = Math.floor((MapWidth - examWidth) / 2);
-
-  // 在中心区域随机偏移
-  const maxRowOffset = Math.max(0, MapHeight - examHeight - centerRow);
-  const maxColOffset = Math.max(0, MapWidth - examWidth - centerCol);
-
-  const rowOffset =
-    Math.floor(Math.random() * (maxRowOffset * 2 + 1)) - maxRowOffset;
-  const colOffset =
-    Math.floor(Math.random() * (maxColOffset * 2 + 1)) - maxColOffset;
-
-  const startRow = Math.max(0, centerRow + rowOffset);
-  const startCol = Math.max(0, centerCol + colOffset);
-
-};
-const addExample = (exam?: Creature) => {
+const saveExample = (exam?: Creature) => {
   if (!exam && active.value) {
     exam = JSON.parse(JSON.stringify(active.value)) as Creature;
   }
@@ -152,15 +136,14 @@ const addExample = (exam?: Creature) => {
       return;
     }
   }
-  active.value = exam!;
-  examStore.value.push(exam)
+  examStore.value.push(JSON.parse(JSON.stringify(exam)))
 }
 
 const showExample = (exam: Creature, _real: Creature) => {
   active.value = exam;
   real.value = _real;
 }
-defineExpose({ showExample, addExample })
+defineExpose({ showExample, saveExample })
 </script>
 
 <style lang="scss">

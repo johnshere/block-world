@@ -65,7 +65,7 @@ const generate = (deltaTime: number) => {
 
     // 随机生成一个位置，位置为中心，大小为size*size，但是要校验当时是否与其他的creature重叠
     let x = Math.floor(Math.random() * (world.cols - creature.position.cols));
-    const y = Math.floor((Math.random() * world.rows) / 8);
+    const y = Math.floor((Math.random() * world.rows) / 2);
     creature.position.x = x;
     creature.position.y = y;
 
