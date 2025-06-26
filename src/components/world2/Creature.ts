@@ -12,10 +12,8 @@ export interface Position {
 }
 /**
  * 运动方向，0为静止
- * x:1为向右，2为向左
- * y:1为向下，2为向上
  */
-export type Direction = 0 | 1 | 2;
+export type Direction = -1 | 0 | 1;
 
 export const Colors = [
   "#FF0000", // 纯红
@@ -52,11 +50,11 @@ export const Colors = [
 
 function RanDirection(type?: "x" | "y") {
   if (type === "x") {
-    return 0; //Math.random() < 0.1 ? (Math.random() < 0.5 ? 2 : 1) : 0;
+    return Math.random() < 0.1 ? (Math.random() < 0.5 ? -1 : 1) : 0;
   } else if (type === "y") {
-    return Math.random() < 0.5 ? 2 : 1;
+    return Math.random() < 0.1 ? (Math.random() < 0.5 ? -1 : 1) : 0;
   }
-  return Math.random() < 0.5 ? 2 : 1;
+  return Math.random() < 0.5 ? -1 : 1;
 }
 
 export class Creature {
@@ -159,12 +157,11 @@ export class Creature {
     const { cols, rows } = world;
     if (this.position.x <= 0) {
       this.direction.x = 1;
+    } else if (this.position.x + this.position.cols >= cols) {
+      this.direction.x = -1;
     }
     if (this.position.y <= 0) {
       this.direction.y = 1;
-    }
-    if (this.position.x + this.position.cols >= cols) {
-      this.direction.x = 2;
     }
     if (this.position.y + this.position.rows >= rows) {
       // this.direction.y = 2;
@@ -302,6 +299,9 @@ export class Creature {
     this.moveInterval = Math.max(4, this.moveInterval - 1);
     this.growInterval = Math.max(5, this.growInterval - 1);
     this.direction.x = RanDirection("x");
+    if (Math.random() > 0.8) {
+      this.direction.y = RanDirection("y");
+    }
   }
   private lastGrowTime = 0;
   private lastMoveTime = 0;
@@ -353,16 +353,9 @@ export class Creature {
       this.pickUp();
     }
     // 移动
-    if (this.direction.x === 1) {
-      this.position.x += this.step;
-    } else if (this.direction.x === 2) {
-      this.position.x -= this.step;
-    }
-    if (this.direction.y === 1) {
-      this.position.y += this.step;
-    } else if (this.direction.y === 2) {
-      this.position.y -= this.step;
-    }
+    this.position.x += this.step * this.direction.x;
+    this.position.y += this.step * this.direction.y;
+
     // 检测边界
     this.checkBound();
   }

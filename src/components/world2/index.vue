@@ -39,13 +39,13 @@ const remove = () => {
 let generateInterval: number = 0;
 const generate = (deltaTime: number) => {
     generateInterval += deltaTime;
-    if (generateInterval < 1000) return;
+    if (generateInterval < 400) return;
     generateInterval = 0;
     // 使用更均匀的随机分布
     let ran = Math.random();
 
     // 根据当前生物数量动态调整生成概率
-    const densityFactor = (ocean.value.length / 70);
+    const densityFactor = (ocean.value.length / 100);
     if (ran < densityFactor) return;
 
     let creature: Creature | undefined = undefined;
