@@ -1,4 +1,4 @@
-import { setLight, ocean, world, times } from "./Ocean";
+import { setLight, world } from "./Ocean";
 
 export type Size = {
   width: number;
@@ -62,8 +62,8 @@ function RanDirection(type?: "x" | "y") {
 export class Creature {
   position: Position = { x: 0, y: 0, rows: 0, cols: 0 };
   cells: boolean[][];
-  growInterval = Math.floor(Math.random() * 30 + 5);
-  moveInterval = Math.floor(Math.random() * 30 + 6);
+  growInterval = Math.floor(Math.random() * 100 + 150);
+  moveInterval = Math.floor(Math.random() * 130 + 260);
   step = 1; //Math.floor(Math.random() * 2 + 1);
   /**
    * 运动方向，0为静止
@@ -116,7 +116,7 @@ export class Creature {
    * 更新size
    */
   updateSize() {
-    if (!this.isAlive) return;
+    if (!this.isAlive || this.isStatic) return;
     let minw = this.position.cols;
     let maxw = 0;
     let minh = this.position.rows;
@@ -225,13 +225,26 @@ export class Creature {
     }
     return false;
   }
+  onCollision(target: Creature) {
+    if (!this.isAlive || !target.isAlive) return;
+    const aliveCount = this.getAliveCount();
+    const tAliveCount = target.getAliveCount();
+    if (aliveCount > tAliveCount) {
+      // 死亡
+      target.isAlive = false;
+      this.pickUp();
+    } else {
+      // 死亡
+      this.isAlive = false;
+      target.pickUp();
+    }
+  }
   getAliveCount() {
     if (!this.isAlive) return 0;
     return this.cells.flat().filter((cell) => cell).length;
   }
   grow() {
     if (!this.isAlive || this.isStatic) return;
-    if (times.value % this.growInterval !== 0) return;
     // 元胞自动机生存检测
     const newGrid = Array(this.position.rows + 2)
       .fill(null)
@@ -290,40 +303,25 @@ export class Creature {
     this.growInterval = Math.max(5, this.growInterval - 1);
     this.direction.x = RanDirection("x");
   }
-  run() {
-    this.grow();
+  private lastGrowTime = 0;
+  private lastMoveTime = 0;
+  run(deltaTime: number) {
+    // 更新时间累积器
+    this.lastGrowTime += deltaTime;
+    this.lastMoveTime += deltaTime;
 
-    // 检测碰撞
-    ocean.value
-      .filter((t) => t !== this && t.isAlive)
-      .forEach((t) => {
-        if (this.checkCollision(t)) {
-          const aliveCount = this.getAliveCount();
-          const tAliveCount = t.getAliveCount();
-          if (aliveCount > tAliveCount) {
-            // 死亡
-            t.isAlive = false;
-            this.pickUp();
-          } else {
-            // 死亡
-            this.isAlive = false;
-            t.pickUp();
-          }
-        }
-      });
-
-    const aliveCount = this.getAliveCount();
-
-    // 判断死亡
-    if (aliveCount === 0) {
-      this.isAlive = false;
-    } else if (this.cells.every((row) => row.every((cell) => !cell))) {
-      this.isAlive = false;
+    // 生长逻辑
+    if (this.lastGrowTime >= this.growInterval) {
+      this.lastGrowTime = 0;
+      this.grow();
+      this.updateSize();
     }
-    if (!this.isAlive) return;
-    this.updateSize();
 
-    this.move();
+    // 移动逻辑
+    if (this.lastMoveTime >= this.moveInterval) {
+      this.lastMoveTime = 0;
+      this.move();
+    }
 
     this.draw();
   }
@@ -350,9 +348,8 @@ export class Creature {
   }
   move() {
     if (!this.isAlive) return;
-    if (times.value % this.moveInterval !== 0) return;
 
-    if (times.value % 10 === 0 && Math.random() > 0.5) {
+    if (Math.random() > 0.9) {
       this.pickUp();
     }
     // 移动

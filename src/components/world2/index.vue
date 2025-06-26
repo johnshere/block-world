@@ -6,7 +6,6 @@
             <button @click="reset">重置</button>
             <button @click="remove">消除</button>
             <span class="count">count: {{ ocean?.length }}</span>
-            <span class="count">times: {{ times }}</span>
         </div>
         <div class="cosmos">
             <World />
@@ -19,15 +18,15 @@
 import World from "./world.vue";
 import Panel from "./panel.vue";
 import { onMounted, ref } from "vue";
-import { reset, run, stop, ocean, times, world } from "./Ocean";
+import { reset, run, stop, ocean, world } from "./Ocean";
 import { Creature } from "./Creature";
 
 const panel = ref<InstanceType<typeof Panel>>();
 // 更均匀的类型分布
 const typeRanges = [
-    { max: 0.6, size: 3 },  // 60% 基础生物
-    { max: 0.8, size: 4 },  // 20% 中等生物
-    { max: 0.9, size: 5 }, // 10% 大型生物
+    { max: 0.4, size: 3 },  // 基础生物
+    { max: 0.7, size: 4 },  // 中等生物
+    { max: 0.9, size: 5 }, //  大型生物
     { max: 0.95, size: 6 }, // 5% 大型生物
     { max: 0.98, size: 7 },  // 3% 巨型生物
     { max: 1.00, size: 8 }   // 2% 巨型生物
@@ -37,7 +36,11 @@ const remove = () => {
     if (!check.value) return;
     check.value.isAlive = false
 }
-const generate = () => {
+let generateInterval: number = 0;
+const generate = (deltaTime: number) => {
+    generateInterval += deltaTime;
+    if (generateInterval < 1000) return;
+    generateInterval = 0;
     // 使用更均匀的随机分布
     let ran = Math.random();
 
@@ -56,7 +59,7 @@ const generate = () => {
         ran = Math.random();
         const selectedType = typeRanges.find(range => ran <= range.max);
         creature = new Creature(selectedType?.size);
-        creature.color = '#fff'
+        // creature.color = '#fff'
     }
 
 

@@ -14,9 +14,9 @@
         <span>grow:{{ real.growInterval }}</span>
       </div>
       <div class="example" style="margin-right: auto;">
-        <div v-for="(row, rowIndex) in example?.cells || []" :key="rowIndex" class="row">
+        <div v-for="(row, rowIndex) in active?.cells || []" :key="rowIndex" class="row">
           <div v-for="(cell, colIndex) in row" :key="colIndex" class="cell"
-            :style="!!cell ? `background:${example?.color}` : ''" @click="toggle(rowIndex, colIndex)" />
+            :style="!!cell ? `background:${active?.color}` : ''" @click="toggle(rowIndex, colIndex)" />
         </div>
       </div>
       <br />
@@ -82,8 +82,7 @@ if (localExamples) {
   localStorage.setItem(storageKey.value, JSON.stringify(examStore.value));
 }
 
-const active = ref<Creature>();
-const example = ref<Creature>(new Creature(Array(6).fill(0).map(() => Array(6).fill(false))));
+const active = ref<Creature>(new Creature(Array(6).fill(0).map(() => Array(6).fill(false))));
 const real = ref<Creature>();
 
 const show = computed(() => {
@@ -95,24 +94,23 @@ watch(() => examStore.value, () => {
 }, { deep: true })
 
 const add = () => {
-  const exa = new Creature(example.value.cells)
+  const exa = new Creature(active.value.cells)
   exa.position.x = Math.floor(Math.random() * (world.cols - exa.cells.length));
   ocean.value.push(exa);
 }
 const toggle = (row: number, col: number) => {
-  if (!example.value) return;
-  const cur = example.value as any;
+  if (!active.value) return;
+  const cur = active.value as any;
   const cells = cur.cells;
   if (!cells[row]) return
   cells[row][col] = !cells[row][col];
 }
 const select = (exa: Creature) => {
   active.value = exa;
-  example.value = exa;
 }
 const rotate = () => {
-  if (!example.value) return;
-  const cur = example.value as any;
+  if (!active.value) return;
+  const cur = active.value as any;
   const cells = cur.cells;
   const newCells = cells[0].map((_, index) => cells.map(row => row[index]).reverse());
   cur.cells = newCells;
@@ -145,21 +143,21 @@ const push = (exami: number) => {
 
 };
 const addExample = (exam?: Creature) => {
-  if (!exam && example.value) {
-    exam = JSON.parse(JSON.stringify(example.value)) as Creature;
+  if (!exam && active.value) {
+    exam = JSON.parse(JSON.stringify(active.value)) as Creature;
   }
   // 检查是否已经存在
   for (let exa of examStore.value) {
-    if (JSON.stringify(exa.cells) === JSON.stringify(exam)) {
+    if (exam && JSON.stringify(exa.cells) === JSON.stringify(exam.cells)) {
       return;
     }
   }
-  active.value = exam;
+  active.value = exam!;
   examStore.value.push(exam)
 }
 
 const showExample = (exam: Creature, _real: Creature) => {
-  example.value = exam;
+  active.value = exam;
   real.value = _real;
 }
 defineExpose({ showExample, addExample })

@@ -11,7 +11,10 @@ export const ctx = ref<CanvasRenderingContext2D | null>(null);
 
 export const ocean = ref<Creature[]>([]);
 
-const runningTimer = ref<number | undefined>(undefined);
+let lastTime = 0;
+let runningTimer: number | null = null;
+type Callback = (deltaTime: number) => void;
+let runCallback: Callback | undefined = undefined;
 
 export function pixelToUnit(pixel: number) {
   return Math.floor(pixel / unit);
@@ -50,55 +53,24 @@ export function createOcean(wrap: HTMLElement) {
   });
 }
 
-export const times = ref(-1);
-
-function storm() {
-  if (!canvas.value || !ctx.value) return;
-
-  times.value++;
-
-  // 使用transform后，坐标计算更简单
-  const width = canvas.value.width;
-  const height = canvas.value.height;
-
-  ctx.value.fillStyle = "#000";
-  ctx.value.fillRect(0, 0, width, height);
-
-  // 绘制网格
-  // for (let x = 0 % unit; x < width; x += unit) {
-  //   ctx.value.strokeStyle = "#aaa";
-  //   ctx.value.lineWidth = lineWidth;
-  //   // if (x && x % (10 * unit) === 0) {
-  //   //   ctx.value.strokeStyle = "#fff";
-  //   //   ctx.value.lineWidth = 1.5*lineWidth;
-  //   // }
-  //   ctx.value.beginPath();
-  //   ctx.value.moveTo(x, 0);
-  //   ctx.value.lineTo(x, height);
-  //   ctx.value.stroke();
-  // }
-
-  // for (let y = 0; y < height; y += unit) {
-  //   ctx.value.strokeStyle = "#aaa";
-  //   ctx.value.lineWidth = lineWidth;
-  //   // if (y && y % (10 * unit) === 0) {
-  //   //   ctx.value.strokeStyle = "#fff";
-  //   //   ctx.value.lineWidth = 1.5*lineWidth;
-  //   // }
-  //   ctx.value.beginPath();
-  //   ctx.value.moveTo(0, y);
-  //   ctx.value.lineTo(width, y);
-  //   ctx.value.stroke();
-  // }
-
-  ctx.value.save();
-  ctx.value.restore();
-  ocean.value.forEach((c) => {
-    c.run();
-  });
-
-  // 保留活着
-  ocean.value = ocean.value.filter((c) => c.isAlive);
+function checkCollision() {
+  // 检测碰撞
+  const arr = ocean.value;
+  for (let i = 0; i < arr.length; i++) {
+    if (!arr[i].isAlive) {
+      continue;
+    }
+    const source = arr[i];
+    for (let j = i + 1; j < arr.length; j++) {
+      const target = arr[j];
+      if (!target.isAlive) {
+        continue;
+      }
+      if (source.checkCollision(target)) {
+        source.onCollision(target);
+      }
+    }
+  }
 }
 
 export function setRect(
@@ -124,8 +96,9 @@ export function setLight(row: number, col: number, fill = "#fff") {
 }
 
 export const stop = () => {
-  runningTimer && clearInterval(runningTimer.value);
-  runningTimer.value = undefined;
+  runningTimer && cancelAnimationFrame(runningTimer);
+  runningTimer = null;
+  runCallback = undefined;
 };
 export const reset = () => {
   // stop();
@@ -133,25 +106,34 @@ export const reset = () => {
 };
 reset();
 
-export const fall = (num: number = 1) => {
-  if (num <= 0) {
-    throw new Error("num must be greater than 0");
-  }
-};
-export const run = (beforeEach?: Function) => {
+function storm(timestamp: number) {
+  if (!canvas.value || !ctx.value) return;
+
+  // 计算deltaTime
+  const deltaTime = timestamp - lastTime;
+  // 根据实际帧间隔调整逻辑
+  // if (deltaTime > 100) return; // 防止卡顿导致异常
+  lastTime = timestamp;
+
+  // 清空画布
+  ctx.value.fillStyle = "#000";
+  ctx.value.fillRect(0, 0, canvas.value.width, canvas.value.height);
+
+  ocean.value.forEach((c) => {
+    c.run(deltaTime); // 传入时间缩放因子
+  });
+
+  checkCollision();
+
+  // 过滤死亡生物
+  ocean.value = ocean.value.filter((c) => c.isAlive);
+
+  runCallback?.(deltaTime);
+  runningTimer = requestAnimationFrame(storm);
+}
+export const run = (callback?: Callback) => {
   stop();
-
-  let frameTime = 39; // 默认50ms，即20FPS
-
-  const running = () => {
-    beforeEach?.();
-
-    storm();
-
-    // fall();
-    runningTimer.value = undefined;
-    run(beforeEach);
-  };
-
-  runningTimer.value = setTimeout(running, frameTime);
+  runCallback = callback;
+  lastTime = performance.now();
+  runningTimer = requestAnimationFrame(storm);
 };
